@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Efficiency Predictor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Efficiency Predictor</h1>
+            <p class="tagline">Predict fuel efficiency or electric charging performance with machine learning</p>
+        </div>
+        
+        <form id="prediction-form" action="/predict" method="post">
+            <div class="model-selection">
+                <label for="model_type"><i class="fas fa-sliders-h"></i> Select Prediction Type:</label>
+                <select id="model_type" name="model_type" onchange="toggleInputs()">
+                    <option value="fuel">Fuel Efficiency</option>
+                    <option value="electric">Electric Charging Efficiency</option>
+                </select>
+            </div>
+            
+            <!-- Fuel Efficiency Inputs -->
+            <div id="fuel-inputs">
+                <!--<div class="image-banner" id="fuel-banner"></div>-->
+                <h2><i class="fas fa-gas-pump"></i> Fuel Efficiency Prediction</h2>
+                <p class="description">Enter vehicle specifications to predict fuel efficiency in miles per gallon (MPG). Our model analyzes your vehicle's characteristics to estimate how efficiently it uses fuel.</p>
+                
+                <!-- Numerical Features -->
+                {% for feature in fuel_features %}
+                <div class="input-group">
+                    <label for="{{ feature }}">{{ feature|capitalize }}:</label>
+                    {% if feature == 'cylinders' %}
+                    <input type="number" step="1" min="3" max="12" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Number of engine cylinders (3-12). More cylinders typically mean higher fuel consumption.</span>
+                    {% elif feature == 'displacement' %}
+                    <input type="number" step="0.1" min="1.0" max="7.0" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Engine displacement in liters (1.0-7.0). Larger displacement generally means lower fuel efficiency.</span>
+                    {% elif feature == 'year' %}
+                    <input type="number" step="1" min="2014" max="2024" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Model year (2014-2024). Newer vehicles tend to have better fuel efficiency.</span>
+                    {% else %}
+                    <input type="number" step="0.01" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Description for {{ feature }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <!-- Categorical Features -->
+                {% for category, options in fuel_categorical.items() %}
+                <div class="input-group">
+                    <label for="{{ category }}">{{ category|capitalize }}:</label>
+                    <select id="{{ category }}" name="{{ category }}" required>
+                        {% for option in options %}
+                        <option value="{{ option }}">{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if category == 'drive' %}
+                    <span class="field-info">Drive type: fwd (front-wheel drive), rwd (rear-wheel drive), 4wd (four-wheel drive), awd (all-wheel drive). AWD/4WD typically have lower fuel efficiency.</span>
+                    {% elif category == 'fuel_type' %}
+                    <span class="field-info">Type of fuel used by the vehicle: gas (gasoline), diesel, or electricity.</span>
+                    {% elif category == 'transmission' %}
+                    <span class="field-info">Transmission type: a (automatic) or m (manual). Manual transmissions may offer better fuel efficiency in some cases.</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Electric Efficiency Inputs -->
+            <div id="electric-inputs" style="display: none;">
+                <!--<div class="image-banner" id="electric-banner"></div>-->
+                <h2><i class="fas fa-charging-station"></i> Electric Charging Efficiency Prediction</h2>
+                <p class="description">Enter battery and charging parameters to predict electric charging efficiency. Our model analyzes various factors to estimate how efficiently your EV battery charges.</p>
+                
+                <!-- Numerical Features -->
+                {% for feature in electric_features %}
+                <div class="input-group">
+                    <label for="{{ feature }}">{{ feature }}:</label>
+                    {% if feature == 'SOC (%)' %}
+                    <input type="number" step="0.01" min="10" max="100" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">State of Charge (10-100%). The current battery charge level as a percentage.</span>
+                    {% elif feature == 'Voltage (V)' %}
+                    <input type="number" step="0.01" min="3.5" max="4.2" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Battery voltage (3.5-4.2V). Higher voltage typically indicates higher charge level.</span>
+                    {% elif feature == 'Current (A)' %}
+                    <input type="number" step="0.01" min="10" max="100" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Charging current (10-100A). Higher current means faster charging but may affect efficiency.</span>
+                    {% elif feature == 'Battery Temp (°C)' %}
+                    <input type="number" step="0.01" min="20" max="40" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Battery temperature (20-40°C). Extreme temperatures can reduce charging efficiency.</span>
+                    {% elif feature == 'Ambient Temp (°C)' %}
+                    <input type="number" step="0.01" min="15" max="35" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Surrounding temperature (15-35°C). Environmental temperature affects battery performance.</span>
+                    {% elif feature == 'Charging Duration (min)' %}
+                    <input type="number" step="0.01" min="20" max="120" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Duration of charging session (20-120 minutes). Longer durations may affect efficiency.</span>
+                    {% elif feature == 'Degradation Rate (%)' %}
+                    <input type="number" step="0.01" min="4" max="15" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Battery degradation rate (4-15%). Higher degradation means reduced battery capacity over time.</span>
+                    {% elif feature == 'Efficiency (%)' %}
+                    <input type="number" step="0.01" min="95" max="99" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Current charging efficiency (95-99%). The efficiency of energy transfer during charging.</span>
+                    {% else %}
+                    <input type="number" step="0.01" id="{{ feature }}" name="{{ feature }}" required>
+                    <span class="field-info">Description for {{ feature }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <!-- Categorical Features -->
+                {% for category, options in electric_categorical.items() %}
+                <div class="input-group">
+                    <label for="{{ category }}">{{ category }}:</label>
+                    <select id="{{ category }}" name="{{ category }}" required>
+                        {% for option in options %}
+                        <option value="{{ option }}">{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if category == 'Charging Mode' %}
+                    <span class="field-info">Charging speed: Fast (rapid charging), Normal (standard charging), or Slow (trickle charging). Fast charging is quicker but may be less efficient.</span>
+                    {% elif category == 'Battery Type' %}
+                    <span class="field-info">Type of battery: Li-ion (Lithium-ion) or LiFePO4 (Lithium Iron Phosphate). Different chemistries have different charging characteristics.</span>
+                    {% elif category == 'EV Model' %}
+                    <span class="field-info">Electric vehicle model: Model A, Model B, or Model C. Different models may have different battery management systems.</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <button type="submit" class="predict-btn"><i class="fas fa-chart-line"></i> Predict Efficiency</button>
+        </form>
+        
+        <div class="footer">
+            <p>© 2023 Efficiency Predictor | Powered by Machine Learning</p>
+        </div>
+    </div>
+    
+    <script>
+        function toggleInputs() {
+            const modelType = document.getElementById('model_type').value;
+            const fuelInputs = document.getElementById('fuel-inputs');
+            const electricInputs = document.getElementById('electric-inputs');
+            
+            if (modelType === 'fuel') {
+                fuelInputs.style.display = 'block';
+                electricInputs.style.display = 'none';
+                
+                // Disable electric inputs
+                const electricFields = electricInputs.querySelectorAll('input, select');
+                electricFields.forEach(field => field.disabled = true);
+                
+                // Enable fuel inputs
+                const fuelFields = fuelInputs.querySelectorAll('input, select');
+                fuelFields.forEach(field => field.disabled = false);
+            } else {
+                fuelInputs.style.display = 'none';
+                electricInputs.style.display = 'block';
+                
+                // Disable fuel inputs
+                const fuelFields = fuelInputs.querySelectorAll('input, select');
+                fuelFields.forEach(field => field.disabled = true);
+                
+                // Enable electric inputs
+                const electricFields = electricInputs.querySelectorAll('input, select');
+                electricFields.forEach(field => field.disabled = false);
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', toggleInputs);
+    </script>
+</body>
+</html> 
